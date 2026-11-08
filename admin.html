@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="bn"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SurpriseBD Admin</title>
+<style>
+body{font-family:system-ui,"Hind Siliguri",sans-serif;margin:0;padding:16px;background:#fff8fb;color:#412b48}
+input,button{font:inherit;padding:10px 12px;border-radius:12px;border:1px solid #e0d0e8}
+button{cursor:pointer;background:#fff}
+button.ok{background:#2e9e5b;color:#fff;border-color:#2e9e5b}
+button.no{background:#d1435b;color:#fff;border-color:#d1435b}
+li{list-style:none;background:#fff;border:1px solid #f0e2ec;border-radius:16px;padding:12px;margin:10px 0;word-break:break-all}
+ul{padding:0}
+.row{display:flex;gap:8px;margin-top:8px}
+#msg{color:#d1435b;margin:8px 0}
+</style></head><body>
+<h2>অ্যাডমিন: pending ভিডিও</h2>
+<div id="login">
+  <input id="e" type="email" placeholder="অ্যাডমিন ইমেইল">
+  <button onclick="login()">লগইন লিংক পাঠান</button>
+</div>
+<p id="msg"></p>
+<button onclick="load()">🔄 রিফ্রেশ</button> <button onclick="out()">লগআউট</button>
+<ul id="list"></ul>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const sb = supabase.createClient('https://mdihaixootqecddmsacd.supabase.co','sb_publishable_6gzNmotEDHhqqpuO_t0t1Q_SBgxJlDS');
+const $ = id => document.getElementById(id);
+const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function login(){
+  const {error}=await sb.auth.signInWithOtp({email:$('e').value.trim(),options:{emailRedirectTo:location.origin+'/admin.html'}});
+  $('msg').textContent = error ? error.message : 'ইমেইলে লিংক গেছে ✅';
+}
+async function out(){ await sb.auth.signOut(); $('list').innerHTML=''; $('login').hidden=false; }
+async function load(){
+  const {data,error}=await sb.rpc('admin_list_pending');
+  if(error){ $('msg').textContent = error.message.includes('forbidden') ? 'আপনি অ্যাডমিন নন (Run 5 চালিয়েছেন?)' : error.message; return; }
+  $('msg').textContent=''; $('login').hidden=true;
+  $('list').innerHTML = data.length ? data.map(v=>`<li><b>${esc(v.user_email)}</b><br>
+    <a href="${esc(v.video_url)}" target="_blank" rel="noopener noreferrer">${esc(v.video_url)}</a>
+    <div class="row"><button class="ok" onclick="act('approve_video','${esc(v.id)}')">✅ Approve +২৫</button>
+    <button class="no" onclick="act('reject_video','${esc(v.id)}')">❌ Reject</button></div></li>`).join('') : '<li>কিছু pending নেই 🎉</li>';
+}
+async function act(fn,id){ const {error}=await sb.rpc(fn,{p_id:id}); if(error) $('msg').textContent=error.message; load(); }
+sb.auth.onAuthStateChange((ev,s)=>{ if(s) setTimeout(load,0); });
+</script></body></html>
